@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: moyi-interview-web
+  namespace: moyi-interview
+  labels:
+    app: moyi-interview-web
+
+spec:
+  type: LoadBalancer
+  selector:
+    app: moyi-interview-web
+  ports:
+    - port: 80
+      targetPort: 80

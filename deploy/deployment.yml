@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moyi-interview-web
+  namespace: moyi-interview
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: moyi-interview-web
+  template:
+    metadata:
+      labels:
+        app: moyi-interview-web
+    spec:
+      containers:
+        - name: moyi-interview-web
+          image: IMAGE_URI_PLACEHOLDER
+          ports:
+            - containerPort: 80
