@@ -16,7 +16,7 @@ Coded by www.creative-tim.com
 import { useState } from "react";
 
 // react-router-dom components
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 // @mui material components
 import Card from "@mui/material/Card";
@@ -37,12 +37,15 @@ import CoverLayout from "layouts/authentication/components/CoverLayout";
 // Images
 import bgImage from "assets/images/bg-sign-in-cover.jpeg";
 
+// Custom context
+import { useAuth } from "context/AuthContext";
+
 // API service
-import axios from "axios";
 import API from "services/api";
 
 function Cover() {
-  const navigate = useNavigate();
+  const { login } = useAuth();
+  const location = useLocation();
   
   // Form state
   const [formData, setFormData] = useState({
@@ -88,23 +91,30 @@ function Cover() {
         password: formData.password
       });
       
-      // Set auth token in localStorage or sessionStorage based on rememberMe
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('authToken', response.data.token || "dummy-token");
-      storage.setItem('user', JSON.stringify(response.data.user || {
-        email: formData.email,
-      }));
+      // Debug the token
+      console.log('Auth response:', response.data);
       
-      // Redirect to dashboard after successful login
-      navigate('/pages/screenings/all-screenings');
+      if (!response.data.data.accessToken) {
+        throw new Error('No token received from server');
+      }
+      
+      // Use the auth context to handle login
+      login(
+        { email: formData.email },
+        response.data.data.accessToken,
+        response.data.data.refreshToken,
+        rememberMe
+      );
       
     } catch (error) {
+      console.error('Login error:', error);
+      
       if (error.response) {
-        setError(error.response.data || "Invalid email or password");
+        setError(error.response.data?.message || "Invalid email or password");
       } else if (error.request) {
         setError("No response from server. Please try again later.");
       } else {
-        setError("An error occurred. Please try again.");
+        setError(error.message || "An error occurred. Please try again.");
       }
       setOpenSnackbar(true);
     } finally {
@@ -184,7 +194,7 @@ function Cover() {
                 type="submit"
                 disabled={isLoading}
               >
-                {isLoading ? <CircularProgress size={24} color="inherit" /> : "sign in"}
+                {isLoading ? <CircularProgress size={24} color="inherit" /> : "Sign In"}
               </MDButton>
             </MDBox>
             <MDBox mt={3} mb={1} textAlign="center">
@@ -200,6 +210,18 @@ function Cover() {
                 >
                   Sign up
                 </MDTypography>
+              </MDTypography>
+            </MDBox>
+            <MDBox mt={2} mb={1} textAlign="center">
+              <MDTypography
+                component={Link}
+                to="/authentication/reset-password/cover"
+                variant="button"
+                color="info"
+                fontWeight="medium"
+                textGradient
+              >
+                Forgot Password?
               </MDTypography>
             </MDBox>
           </MDBox>

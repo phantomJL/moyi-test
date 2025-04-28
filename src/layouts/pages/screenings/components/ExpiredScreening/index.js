@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 
 // @mui material components
 import Grid from "@mui/material/Grid";
@@ -11,10 +11,12 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Checkbox from "@mui/material/Checkbox";
-import Icon from "@mui/material/Icon";
 import IconButton from "@mui/material/IconButton";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
+import Icon from "@mui/material/Icon";
+import CircularProgress from "@mui/material/CircularProgress";
+import Alert from "@mui/material/Alert";
+import Snackbar from "@mui/material/Snackbar";
+import Chip from "@mui/material/Chip";
 
 // Material Dashboard 3 PRO React components
 import MDBox from "components/MDBox";
@@ -22,216 +24,336 @@ import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 import MDInput from "components/MDInput";
 
-// Material Dashboard 3 PRO React examples
-import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
-import DashboardNavbar from "examples/Navbars/DashboardNavbar";
-import Footer from "examples/Footer";
+// Import the API service
+import { ScreeningService } from "services";
 
-function ExpiredScreeningDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+function ScreeningDetail({ id, onClose }) {
+  // State for screening data
+  const [screening, setScreening] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  
+  // UI state
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [openSnackbar, setOpenSnackbar] = useState(false);
 
-  // Sample data for the screening
-  const screeningData = {
-    id: id,
-    jobTitle: "Java Developer",
-    candidateName: "Jerry Wang",
-    expireTime: "2025-12-31 12:00 PM",
-    duration: "60 mins",
-    jobDescription: "We are looking for an experienced Java Developer to join our team. The ideal candidate should have strong Java programming skills, experience with Spring Framework, and knowledge of microservices architecture. The candidate should also have excellent communication skills and be able to work well in a team environment.",
-    questions: [
-      { id: 1, question: "Question 1", type: "Technical", duration: "3 mins", coding: false },
-      { id: 2, question: "Question 2", type: "Behavior", duration: "3 mins", coding: false },
-      { id: 3, question: "Question 3", type: "Coding", duration: "3 mins", coding: true },
-      { id: 4, question: "Question 4", type: "Scenario", duration: "5 mins", coding: false },
-    ],
-    techTags: ["Java", "Kafka", "Redis"]
-  };
-
-  const handleReopenScreening = () => {
-    alert(`Reopening screening: ${id}`);
-  };
-
-  const handleDeleteScreening = () => {
-    if (window.confirm("Are you sure you want to delete this screening?")) {
-      alert(`Deleting screening: ${id}`);
-      navigate("/screenings/all-screenings"); 
+  // Fetch screening data on component mount
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchScreeningData = async () => {
+      setIsLoading(true);
+      setError("");
+      
+      try {
+        console.log('Fetching screening with ID:', id);
+        const response = await ScreeningService.getScreeningById(id);
+        console.log('Screening data:', response.data);
+        
+        setScreening(response.data);
+        setQuestions(response.data.questions || []);
+      } catch (error) {
+        console.error('Error fetching screening:', error);
+        setError(
+          error.response?.data?.message || 
+          "Failed to fetch screening details. Please try again."
+        );
+        setOpenSnackbar(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchScreeningData();
+  }, [id]);
+  
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return dateString;
     }
   };
-
-  const handleBack = () => {
-    navigate("/screenings/all-screenings");
+  
+  // Handle question check
+  const handleQuestionCheck = (questionId) => {
+    setQuestions(questions.map(q => 
+      q.id === questionId ? { ...q, completed: !q.completed } : q
+    ));
+    
+    // In a real implementation, you would also update this on the server
+    // Perhaps using an API call like:
+    // ScreeningService.updateQuestion(id, questionId, { completed: !questions.find(q => q.id === questionId).completed });
   };
+  
+  // Handle delete screening
+  const handleDeleteScreening = async () => {
+    if (!window.confirm("Are you sure you want to delete this screening?")) return;
+    
+    setIsSubmitting(true);
+    setError("");
+    
+    try {
+      await ScreeningService.deleteScreening(id);
+      
+      setSuccess("Screening deleted successfully");
+      setOpenSnackbar(true);
+      
+      // Close the modal/navigate away after success
+      setTimeout(() => {
+        onClose && onClose();
+      }, 1500);
+    } catch (error) {
+      console.error('Error deleting screening:', error);
+      setError(
+        error.response?.data?.message || 
+        "Failed to delete screening. Please try again."
+      );
+      setOpenSnackbar(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Handle regenerate screening
+  const handleRegenerate = async () => {
+    setIsSubmitting(true);
+    setError("");
+    
+    try {
+      // This endpoint might need to be adjusted based on your API
+      const response = await ScreeningService.reopenScreening(id);
+      
+      setSuccess("Screening regenerated successfully");
+      setOpenSnackbar(true);
+      
+      // Refresh the data
+      setScreening(response.data);
+      setQuestions(response.data.questions || []);
+    } catch (error) {
+      console.error('Error regenerating screening:', error);
+      setError(
+        error.response?.data?.message || 
+        "Failed to regenerate screening. Please try again."
+      );
+      setOpenSnackbar(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Handle snackbar close
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+  
+  // Loading state
+  if (isLoading) {
+    return (
+      <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </MDBox>
+    );
+  }
+  
+  // Error state with no data
+  if (error && !screening) {
+    return (
+      <MDBox p={3}>
+        <Alert severity="error">{error}</Alert>
+        <MDBox mt={2} display="flex" justifyContent="center">
+          <MDButton variant="outlined" color="info" onClick={onClose}>
+            Go Back
+          </MDButton>
+        </MDBox>
+      </MDBox>
+    );
+  }
+  
+  // No data state
+  if (!screening) {
+    return (
+      <MDBox p={3} textAlign="center">
+        <MDTypography variant="body1">No screening data found.</MDTypography>
+        <MDBox mt={2}>
+          <MDButton variant="outlined" color="info" onClick={onClose}>
+            Go Back
+          </MDButton>
+        </MDBox>
+      </MDBox>
+    );
+  }
 
   return (
-      <MDBox pt={6} pb={3}>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-              <MDBox>
-                <MDBox mb={4} display="flex" justifyContent="space-between" alignItems="center">
-                  <MDBox>
-                    <MDTypography variant="h5" fontWeight="medium">
-                      Screening Detail
-                    </MDTypography>
-                    <MDTypography variant="caption" color="text">
-                      ID: {id}
+    <MDBox pt={3} pb={3}>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <MDBox>
+            <Grid container spacing={3}>
+              {/* Basic Info Section */}
+              <Grid item xs={12} md={6}>
+                <MDBox mb={2}>
+                  <MDTypography variant="h6" fontWeight="medium">
+                    Job Title: {screening.jobTitle}
+                  </MDTypography>
+                </MDBox>
+                <MDBox mb={2}>
+                  <MDTypography variant="body2">
+                    Candidate: {screening.candidateName || "N/A"}
+                  </MDTypography>
+                </MDBox>
+                {/* Display tags if available */}
+                {screening.tags && screening.tags.length > 0 && (
+                  <MDBox mb={2} display="flex" flexWrap="wrap" gap={1}>
+                    {screening.tags.map((tag, index) => (
+                      <Chip 
+                        key={index} 
+                        label={tag} 
+                        color="primary" 
+                        variant="outlined" 
+                        size="small" 
+                      />
+                    ))}
+                  </MDBox>
+                )}
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <MDBox mb={2}>
+                  <MDTypography variant="body2">
+                    Expiration: {formatDate(screening.expirationDate)}
+                  </MDTypography>
+                </MDBox>
+                <MDBox mb={2}>
+                  <MDTypography variant="body2">
+                    Duration: {screening.duration} minutes
+                  </MDTypography>
+                </MDBox>
+                <MDBox mb={2}>
+                  <MDTypography variant="body2">
+                    Status: {screening.status || "Active"}
+                  </MDTypography>
+                </MDBox>
+              </Grid>
+              
+              {/* Job Description */}
+              <Grid item xs={12}>
+                <MDBox mb={3}>
+                  <MDTypography variant="subtitle2" fontWeight="medium">
+                    Job Description:
+                  </MDTypography>
+                  <MDBox mt={1}>
+                    <MDTypography variant="body2" color="text">
+                      {screening.jobDescription || "No job description provided."}
                     </MDTypography>
                   </MDBox>
+                </MDBox>
+              </Grid>
+              
+              {/* Screening Questions */}
+              <Grid item xs={12}>
+                <MDBox mb={2}>
+                  <MDTypography variant="subtitle2" fontWeight="medium" mb={2}>
+                    Screening Questions:
+                  </MDTypography>
+                  
+                  {questions.length > 0 ? (
+                    <TableContainer>
+                      <Table sx={{ minWidth: 650 }}>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Question</TableCell>
+                            <TableCell>Type</TableCell>
+                            <TableCell>Duration</TableCell>
+                            <TableCell>Completed</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {questions.map((question) => (
+                            <TableRow key={question.id}>
+                              <TableCell>
+                                {question.question || question.content}
+                              </TableCell>
+                              <TableCell>{question.type || "N/A"}</TableCell>
+                              <TableCell>{question.duration || "N/A"}</TableCell>
+                              <TableCell>
+                                <Checkbox 
+                                  checked={Boolean(question.completed)}
+                                  onChange={() => handleQuestionCheck(question.id)}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <MDBox p={2} textAlign="center">
+                      <MDTypography variant="body2">
+                        No questions available for this screening.
+                      </MDTypography>
+                    </MDBox>
+                  )}
+                </MDBox>
+              </Grid>
+              
+              {/* Action Buttons */}
+              <Grid item xs={12}>
+                <MDBox display="flex" justifyContent="space-between" mt={4}>
                   <MDButton 
-                    variant="outlined"
-                    color="info"
-                    onClick={handleBack}
-                    startIcon={<Icon>arrow_back</Icon>}
+                    variant="outlined" 
+                    color="error"
+                    onClick={handleDeleteScreening}
+                    disabled={isSubmitting}
                   >
-                    Back to List
+                    {isSubmitting ? <CircularProgress size={24} /> : "Delete Screening"}
+                  </MDButton>
+                  
+                  <MDButton 
+                    variant="gradient" 
+                    color="info"
+                    onClick={handleRegenerate}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? <CircularProgress size={24} /> : "Re-generate Screening"}
                   </MDButton>
                 </MDBox>
-                
-                <Grid container spacing={3}>
-                  {/* Basic Info Section */}
-                  <Grid item xs={12} md={6}>
-                    <MDBox mb={2}>
-                      <MDTypography variant="h6" fontWeight="medium">
-                        Job Title: {screeningData.jobTitle}
-                      </MDTypography>
-                    </MDBox>
-                    <MDBox mb={2}>
-                      <MDTypography variant="body2">
-                        Candidate Name: {screeningData.candidateName}
-                      </MDTypography>
-                    </MDBox>
-                  </Grid>
-                  
-                  <Grid item xs={12} md={6}>
-                    <MDBox mb={2} display="flex" alignItems="center">
-                      <MDTypography variant="body2" mr={1}>
-                        Expire time:
-                      </MDTypography>
-                      <MDInput
-                        type="text"
-                        value={screeningData.expireTime}
-                        disabled
-                        sx={{ width: '200px' }}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <IconButton edge="end">
-                                <Icon>calendar_today</Icon>
-                              </IconButton>
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </MDBox>
-                    <MDBox mb={2}>
-                      <MDTypography variant="body2">
-                        Duration: {screeningData.duration}
-                      </MDTypography>
-                    </MDBox>
-                  </Grid>
-                  
-                  {/* Job Description */}
-                  <Grid item xs={12}>
-                    <MDBox mb={3}>
-                      <MDTypography variant="subtitle2" fontWeight="medium" mb={1}>
-                        Job Description:
-                      </MDTypography>
-                      <MDBox 
-                        p={2} 
-                        border="1px solid #eee" 
-                        borderRadius="md"
-                        sx={{ backgroundColor: "#f8f9fa" }}
-                      >
-                        <MDTypography variant="body2" color="text">
-                          {screeningData.jobDescription}
-                        </MDTypography>
-                      </MDBox>
-                    </MDBox>
-                  </Grid>
-                  
-                  {/* Tech Tags */}
-                  <Grid item xs={12}>
-                    <MDBox mb={3} display="flex" flexWrap="wrap" gap={1}>
-                      {screeningData.techTags.map((tag, idx) => (
-                        <MDBox
-                          key={idx}
-                          px={2}
-                          py={0.5}
-                          borderRadius="xl"
-                          bgcolor="#f0f0f0"
-                          display="inline-flex"
-                        >
-                          <MDTypography variant="caption" fontWeight="medium">
-                            {tag}
-                          </MDTypography>
-                        </MDBox>
-                      ))}
-                    </MDBox>
-                  </Grid>
-                  
-                  {/* Screening Questions */}
-                  <Grid item xs={12}>
-                    <MDBox mb={3}>
-                      <MDTypography variant="subtitle2" fontWeight="medium" mb={2}>
-                        Screening Questions (Editable table):
-                      </MDTypography>
-                      
-                      <TableContainer>
-                        <Table sx={{ minWidth: 650 }}>
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Screening Question*</TableCell>
-                              <TableCell>Type</TableCell>
-                              <TableCell>Duration</TableCell>
-                              <TableCell>Coding</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {screeningData.questions.map((question) => (
-                              <TableRow key={question.id}>
-                                <TableCell>{question.question}</TableCell>
-                                <TableCell>{question.type}</TableCell>
-                                <TableCell>{question.duration}</TableCell>
-                                <TableCell>
-                                  <Checkbox 
-                                    checked={question.coding}
-                                    disabled
-                                  />
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </MDBox>
-                  </Grid>
-                  
-                  {/* Action Buttons */}
-                  <Grid item xs={12}>
-                    <MDBox display="flex" justifyContent="space-between" mt={4}>
-                      <MDButton 
-                        variant="outlined" 
-                        color="error"
-                        onClick={handleDeleteScreening}
-                      >
-                        Delete Screenings
-                      </MDButton>
-                      
-                      <MDButton 
-                        variant="gradient" 
-                        color="info"
-                        onClick={handleReopenScreening}
-                      >
-                        Reopen Screenings
-                      </MDButton>
-                    </MDBox>
-                  </Grid>
-                </Grid>
-              </MDBox>
-          </Grid>
+              </Grid>
+            </Grid>
+          </MDBox>
         </Grid>
-      </MDBox>
+      </Grid>
+      
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={error ? "error" : "success"} 
+          sx={{ width: '100%' }}
+        >
+          {error || success}
+        </Alert>
+      </Snackbar>
+    </MDBox>
   );
 }
 
-export default ExpiredScreeningDetail;
+export default ScreeningDetail;

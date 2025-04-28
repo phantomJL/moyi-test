@@ -146,7 +146,7 @@ function AllProjects() {
                         </Grid>
                         <Grid item xs={12} md={3}>
                           <MDTypography variant="body2" color="text">
-                            Expire time: {screening.expireTime}
+                            Expire time: {screening.expireDate}
                           </MDTypography>
                           <MDBox display="flex" mt={1} flexWrap="wrap" gap={1}>
                             {screening.tags.map((tag, idx) => {

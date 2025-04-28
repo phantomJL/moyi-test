@@ -265,15 +265,15 @@ const routes = [
     component: <Candidates />,
     noCollapse: true
   },
-  {
-    type: "collapse",
-    name: "Interview",
-    key: "interview",
-    icon: <Icon fontSize="small">people</Icon>,
-    route: "/interviews/:id",
-    component: <AIInterview />,
-    noCollapse: true
-  },
+  // {
+  //   type: "collapse",
+  //   name: "Interview",
+  //   key: "interview",
+  //   icon: <Icon fontSize="small">people</Icon>,
+  //   route: "/interviews/:id",
+  //   component: <AIInterview />,
+  //   noCollapse: true
+  // },
   // {
   //   type: "collapse",
   //   name: "Applications",

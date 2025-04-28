@@ -64,13 +64,13 @@ function AllScreenings() {
   const getStatusFromTabValue = (tabValue) => {
     switch (tabValue) {
       case 0:
-        return "upcoming";
+        return "UPCOMING";
       case 1:
-        return "completed";
+        return "COMPLETED";
       case 2:
-        return "expired";
+        return "EXPIRED";
       default:
-        return "upcoming";
+        return "UPCOMING";
     }
   };
   
@@ -79,7 +79,7 @@ function AllScreenings() {
     setIsLoading(true);
     try {
       const response = await ScreeningService.getScreeningsByStatus(status);
-      setScreenings(response.data);
+      setScreenings(response.data.data.items);
       setError("");
     } catch (error) {
       setError(error.userMessage || "Failed to fetch screenings");
@@ -289,7 +289,7 @@ function AllScreenings() {
                           </Grid>
                           <Grid item xs={12} md={3}>
                             <MDTypography variant="body2" color="text">
-                              Expire time: {new Date(screening.expirationDate).toLocaleString()}
+                              Expire time: {Date(screening.expireDate).toLocaleString()}
                             </MDTypography>
                             {tabValue !== 2 && ( // Show screening tags in upcoming and completed tabs
                               <MDBox display="flex" mt={1} flexWrap="wrap" gap={1}>

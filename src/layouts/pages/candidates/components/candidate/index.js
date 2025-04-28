@@ -18,23 +18,41 @@ import MDTypography from "components/MDTypography";
 import MDInput from "components/MDInput";
 import MDButton from "components/MDButton";
 
-// API service
-import axios from "axios";
+// API services
+import { 
+  createCandidate, 
+  updateCandidate, 
+  deleteCandidate, 
+  uploadResume 
+} from "services/CandidateServices";
 
-function Candidate({ isEditMode = false, candidateId = null, onSave, onClose, candidateData = null }) {
+function Candidate({ 
+  isEditMode = false, 
+  candidateId = null, 
+  onSave, 
+  onClose, 
+  onResumeUpload, 
+  candidateData = null 
+}) {
   // Form state with default values or data from props
   const [formData, setFormData] = useState({
     name: candidateData?.name || "",
     email: candidateData?.email || "",
     location: candidateData?.location || "",
-    priority: candidateData?.priority || "High",
-    resume: null
+    priority: candidateData?.priority || "MEDIUM",
+    resumeLocation: candidateData?.resumeLocation || ""
   });
   
-  const [resumeFileName, setResumeFileName] = useState(candidateData?.resumeUrl || "");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [resumeFileName, setResumeFileName] = useState(
+    candidateData?.resumeLocation ? 
+      candidateData.resumeLocation.split('/').pop() : 
+      ""
+  );
   
   // UI state
-  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -52,11 +70,64 @@ function Candidate({ isEditMode = false, candidateId = null, onSave, onClose, ca
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setSelectedFile(file);
+      setResumeFileName(file.name);
+    }
+  };
+
+  // Handle resume upload
+  const handleResumeUpload = async () => {
+    if (!selectedFile) {
+      setError("Please select a file first");
+      setOpenSnackbar(true);
+      return;
+    }
+
+    setIsUploading(true);
+    setError("");
+    
+    try {
+      console.log("Uploading resume:", selectedFile.name);
+      
+      // Call the upload resume API
+      const response = await uploadResume(selectedFile);
+      
+      // Get the resume S3 URI from the response
+      const resumeS3Uri = response.data.data;
+      
+      if (!resumeS3Uri) {
+        throw new Error("Failed to get resume location from server");
+      }
+      
+      console.log("Resume uploaded successfully. S3 URI:", resumeS3Uri);
+      
+      // Update form data with the resume location
       setFormData({
         ...formData,
-        resume: file
+        resumeLocation: resumeS3Uri
       });
-      setResumeFileName(file.name);
+      
+      // Call the onResumeUpload callback if provided
+      if (onResumeUpload) {
+        onResumeUpload(resumeS3Uri);
+      }
+      
+      setSuccess("Resume uploaded successfully!");
+      setOpenSnackbar(true);
+      
+    } catch (error) {
+      console.error("Error uploading resume:", error);
+      
+      if (error.response) {
+        setError(error.response.data?.message || "Failed to upload resume");
+      } else if (error.request) {
+        setError("No response from server. Please try again later.");
+      } else {
+        setError(error.message || "An error occurred during upload");
+      }
+      setOpenSnackbar(true);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -65,78 +136,81 @@ function Candidate({ isEditMode = false, candidateId = null, onSave, onClose, ca
     e.preventDefault();
     
     // Validate form
-    if (!formData.name || !formData.email || !formData.location) {
+    if (!formData.name || !formData.email) {
       setError("Please fill in all required fields");
       setOpenSnackbar(true);
       return;
     }
 
-    setIsLoading(true);
+    // Check if resume is uploaded for new candidates
+    if (!isEditMode && !formData.resumeLocation) {
+      setError("Please upload a resume first");
+      setOpenSnackbar(true);
+      return;
+    }
+
+    setIsSubmitting(true);
     setError("");
     
     try {
-      // In a real app, you would submit to your API
-      // const formDataToSend = new FormData();
-      // formDataToSend.append('name', formData.name);
-      // formDataToSend.append('email', formData.email);
-      // formDataToSend.append('location', formData.location);
-      // formDataToSend.append('priority', formData.priority);
+      let response;
       
-      // if (formData.resume) {
-      //   formDataToSend.append('resume', formData.resume);
-      // }
+      if (isEditMode) {
+        // Update existing candidate
+        console.log("Updating candidate:", candidateId, formData);
+        response = await updateCandidate(candidateId, formData);
+      } else {
+        // Create new candidate
+        console.log("Creating new candidate:", formData);
+        response = await createCandidate(formData);
+      }
       
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create data object to pass back to parent
-      const savedData = {
-        name: formData.name,
-        email: formData.email,
-        location: formData.location,
-        priority: formData.priority,
-        resumeUrl: resumeFileName || "resume.docx" // Use existing file name or default
-      };
+      console.log("API response:", response.data);
       
       // Call the onSave callback with the saved data
-      onSave(savedData);
+      onSave(response.data);
       
       setSuccess(isEditMode 
         ? "Candidate updated successfully!" 
         : "Candidate added successfully!");
       setOpenSnackbar(true);
       
+      // Close the modal after short delay on success
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+      
     } catch (error) {
       console.error("Error saving candidate:", error);
+      
       if (error.response) {
-        setError(error.response.data || "Operation failed");
+        setError(error.response.data?.message || "Operation failed");
       } else if (error.request) {
         setError("No response from server. Please try again later.");
       } else {
-        setError("An error occurred. Please try again.");
+        setError(error.message || "An error occurred. Please try again.");
       }
       setOpenSnackbar(true);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   // Handle delete candidate
   const handleDelete = async () => {
-    if (!isEditMode) return;
+    if (!isEditMode || !candidateId) return;
     
     const confirmed = window.confirm("Are you sure you want to delete this candidate?");
     if (!confirmed) return;
     
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError("");
     
     try {
-      // In a real app, you would call your API
-      // await axios.delete(`/api/v1/candidates/${candidateId}`);
+      console.log("Deleting candidate:", candidateId);
       
-      // Mock successful API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the delete candidate API
+      await deleteCandidate(candidateId);
       
       setSuccess("Candidate deleted successfully!");
       setOpenSnackbar(true);
@@ -148,22 +222,26 @@ function Candidate({ isEditMode = false, candidateId = null, onSave, onClose, ca
       
     } catch (error) {
       console.error("Error deleting candidate:", error);
+      
       if (error.response) {
-        setError(error.response.data || "Delete operation failed");
+        setError(error.response.data?.message || "Delete operation failed");
       } else if (error.request) {
         setError("No response from server. Please try again later.");
       } else {
-        setError("An error occurred. Please try again.");
+        setError(error.message || "An error occurred. Please try again.");
       }
       setOpenSnackbar(true);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleCloseSnackbar = () => {
     setOpenSnackbar(false);
   };
+
+  // Determine if the form is currently processing
+  const isLoading = isUploading || isSubmitting;
 
   return (
     <MDBox>
@@ -221,37 +299,72 @@ function Candidate({ isEditMode = false, candidateId = null, onSave, onClose, ca
                   label="Priority"
                   sx={{padding:'12px'}}
                 >
-                  <MenuItem value="High">High</MenuItem>
-                  <MenuItem value="Medium">Medium</MenuItem>
-                  <MenuItem value="Low">Low</MenuItem>
+                  <MenuItem value="HIGH">High</MenuItem>
+                  <MenuItem value="MEDIUM">Medium</MenuItem>
+                  <MenuItem value="LOW">Low</MenuItem>
                 </Select>
               </FormControl>
             </MDBox>
           </Grid>
           <Grid item xs={12}>
-            <MDBox mb={2} display="flex" alignItems="center">
-              <MDTypography variant="body2" fontWeight="regular" mr={2}>
-                Resume:
+            <MDBox mb={2}>
+              <MDTypography variant="subtitle2" fontWeight="medium" mb={1}>
+                Resume
               </MDTypography>
-              {resumeFileName && (
-                <MDTypography variant="body2" fontWeight="regular" mr={2}>
-                  {resumeFileName}
-                </MDTypography>
-              )}
-              <MDButton
-                variant="contained"
-                color="primary"
-                size="small"
-                component="label"
-              >
-                Upload
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  hidden
-                  onChange={handleFileChange}
-                />
-              </MDButton>
+              <MDBox display="flex" alignItems="center" flexWrap="wrap" gap={2}>
+                {/* File selection */}
+                <MDButton
+                  variant="outlined"
+                  color="info"
+                  size="small"
+                  component="label"
+                  disabled={isLoading}
+                >
+                  Select File
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    hidden
+                    onChange={handleFileChange}
+                  />
+                </MDButton>
+                
+                {/* Display selected file name */}
+                {resumeFileName && (
+                  <MDTypography variant="body2" fontWeight="regular">
+                    {resumeFileName}
+                  </MDTypography>
+                )}
+                
+                {/* Upload button - only show if file selected but not yet uploaded */}
+                {selectedFile && (
+                  <MDButton
+                    variant="contained"
+                    color="info"
+                    size="small"
+                    onClick={handleResumeUpload}
+                    disabled={isLoading}
+                    sx={{ ml: 'auto' }}
+                  >
+                    {isUploading ? (
+                      <CircularProgress size={24} color="inherit" />
+                    ) : (
+                      "Upload Resume"
+                    )}
+                  </MDButton>
+                )}
+                
+                {/* Success indicator if resume is uploaded */}
+                {formData.resumeLocation && !selectedFile && (
+                  <MDTypography 
+                    variant="caption" 
+                    color="success" 
+                    fontWeight="medium"
+                  >
+                    ✓ Resume uploaded
+                  </MDTypography>
+                )}
+              </MDBox>
             </MDBox>
           </Grid>
         </Grid>
@@ -281,7 +394,7 @@ function Candidate({ isEditMode = false, candidateId = null, onSave, onClose, ca
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isLoading ? <CircularProgress size={24} color="inherit" /> : "Save Changes"}
+                  {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "Save Changes"}
                 </MDButton>
               </MDBox>
             </>
@@ -298,9 +411,9 @@ function Candidate({ isEditMode = false, candidateId = null, onSave, onClose, ca
                 variant="gradient"
                 color="info"
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !formData.resumeLocation}
               >
-                {isLoading ? <CircularProgress size={24} color="inherit" /> : "Add Candidate"}
+                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : "Add Candidate"}
               </MDButton>
             </>
           )}

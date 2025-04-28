@@ -75,13 +75,8 @@ function Candidates() {
     setIsLoading(true);
     try {
       const response = await CandidateService.getAllCandidates();
-      
-      // Format the data
-      const formattedCandidates = response.data.data.map(candidate => 
-        CandidateService.formatCandidateData(candidate)
-      );
-      
-      setCandidates(formattedCandidates);
+
+      setCandidates(response.data.data.items);
       setError("");
     } catch (error) {
       console.error("Error fetching candidates:", error);

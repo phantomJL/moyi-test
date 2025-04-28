@@ -36,7 +36,7 @@ if (typeof global === 'undefined') {
 }
 
 function AIInterview() {
-  const { interviewId } = useParams();
+  const { interviewId, meetingCreateToken } = useParams();
   const navigate = useNavigate();
   const [controller] = useMaterialUIController();
   const { darkMode } = controller;
@@ -95,7 +95,7 @@ function AIInterview() {
     console.log("here is tat asdfa")
     const initInterview = async () => {
       try {
-        // In a real app, you would fetch interview data from your API
+
         // const response = await axios.get(`/api/v1/interviews/${interviewId}`);
         // const data = response.data;
         
@@ -124,8 +124,8 @@ function AIInterview() {
     try {
       // Call meeting creation API
       const response = await MeetingService.createMeeting({
-        screeningId: interviewId || '13bb6f84-0573-47c1-9f66-394a850d422e',
-        meetingCreateToken: '273b0d84-1a41-4ee1-9a42-d5670195c467'
+        screeningId: interviewId || '72f0655c-6e42-4573-98b4-34f4b89483fa',
+        meetingCreateToken: meetingCreateToken || '8fbcedf2-a1ce-4a4a-af23-06cb3b0ae6ad'
       });
       console.log(response)
       

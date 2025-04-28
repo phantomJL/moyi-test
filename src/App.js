@@ -52,14 +52,23 @@ import {
   setMiniSidenav,
   setOpenConfigurator,
 } from "context";
+import { AuthProvider } from "context/AuthContext";
+
+// Authentication components
+import ProtectedRoute from "components/Authentication/ProtectedRoute";
+
+// Auth pages
+import SignInCover from "layouts/authentication/sign-in/cover";
+import SignUpCover from "layouts/authentication/sign-up/cover";
+import ResetCover from "layouts/authentication/reset-password/cover";
+
+// Other pages
+import ScreeningDetail from "layouts/pages/screenings/components/UpcomingScreening/ScreeningDetail";
+import AIInterview from "layouts/pages/ai-interview";
 
 // Images
 import brandWhite from "assets/images/logo-ct.png";
 import brandDark from "assets/images/logo-ct-dark.png";
-import ScreeningDetail from "layouts/pages/screenings/components/UpcomingScreening/ScreeningDetail";
-import AIInterview from "layouts/pages/ai-interview";
-import SignUpCover from "layouts/authentication/sign-up/cover";
-
 
 export default function App() {
   const [controller, dispatch] = useMaterialUIController();
@@ -118,18 +127,32 @@ export default function App() {
     document.scrollingElement.scrollTop = 0;
   }, [pathname]);
 
-  const getRoutes = (allRoutes) =>
+  // Helper function to wrap routes with ProtectedRoute
+  const getProtectedRoutes = (allRoutes) =>
     allRoutes.map((route) => {
       if (route.collapse) {
-        return getRoutes(route.collapse);
+        return getProtectedRoutes(route.collapse);
       }
 
       if (route.route) {
+        // Skip authentication for auth-related routes
+        if (route.route.includes('/authentication/')) {
+          return (
+            <Route
+              exact
+              path={route.route}
+              element={route.component}
+              key={route.key}
+            />
+          );
+        }
+
+        // Protect all other routes
         return (
           <Route
             exact
             path={route.route}
-            element={route.component}
+            element={<ProtectedRoute>{route.component}</ProtectedRoute>}
             key={route.key}
           />
         );
@@ -162,65 +185,87 @@ export default function App() {
     </MDBox>
   );
 
-  return direction === "rtl" ? (
-    <CacheProvider value={rtlCache}>
-      <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
-        <CssBaseline />
-        {layout === "dashboard" && (
-          <>
-            <Sidenav
-              color={sidenavColor}
-              brand={
-                (transparentSidenav && !darkMode) || whiteSidenav
-                  ? brandDark
-                  : brandWhite
-              }
-              brandName="Moyi Tech"
-              routes={routes}
-              onMouseEnter={handleOnMouseEnter}
-              onMouseLeave={handleOnMouseLeave}
-            />
-            <Configurator />
-            {configsButton}
-          </>
-        )}
-        {layout === "vr" && <Configurator />}
-        <Routes>
-          {getRoutes(routes)}
-          {/* <Route path="*" element={<Navigate to="/dashboards/analytics" />} /> */}
-          <Route path='/authentication/sign-up/cover' element={<SignUpCover />} />
-          <Route path='/interveiw/:id' element={<AIInterview />} /> 
-        </Routes>
-      </ThemeProvider>
-    </CacheProvider>
-  ) : (
-    <ThemeProvider theme={darkMode ? themeDark : theme}>
-      <CssBaseline />
-      {layout === "dashboard" && (
-        <>
-          <Sidenav
-            color={sidenavColor}
-            brand={
-              (transparentSidenav && !darkMode) || whiteSidenav
-                ? brandDark
-                : brandWhite
-            }
-            brandName="Moyi Tech"
-            routes={routes}
-            onMouseEnter={handleOnMouseEnter}
-            onMouseLeave={handleOnMouseLeave}
-          />
-          <Configurator />
-          {configsButton}
-        </>
+  return (
+    <AuthProvider>
+      {direction === "rtl" ? (
+        <CacheProvider value={rtlCache}>
+          <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
+            <CssBaseline />
+            {layout === "dashboard" && (
+              <>
+                <Sidenav
+                  color={sidenavColor}
+                  brand={
+                    (transparentSidenav && !darkMode) || whiteSidenav
+                      ? brandDark
+                      : brandWhite
+                  }
+                  brandName="Moyi Tech"
+                  routes={routes}
+                  onMouseEnter={handleOnMouseEnter}
+                  onMouseLeave={handleOnMouseLeave}
+                />
+                <Configurator />
+                {configsButton}
+              </>
+            )}
+            {layout === "vr" && <Configurator />}
+            <Routes>
+              {/* Auth routes (not protected) */}
+              <Route path="/authentication/sign-in/cover" element={<SignInCover />} />
+              <Route path="/authentication/sign-up/cover" element={<SignUpCover />} />
+              <Route path="/authentication/reset-password/cover" element={<ResetCover />} />
+              {/* Special routes */}
+              <Route path='/interview/:interviewId/:meetingCreateToken' element={<AIInterview />} />
+              
+              {/* Protected routes */}
+              {getProtectedRoutes(routes)}
+              
+              
+              {/* Default redirect */}
+              <Route path="*" element={<Navigate to="/authentication/sign-in/cover" />} />
+            </Routes>
+          </ThemeProvider>
+        </CacheProvider>
+      ) : (
+        <ThemeProvider theme={darkMode ? themeDark : theme}>
+          <CssBaseline />
+          {layout === "dashboard" && (
+            <>
+              <Sidenav
+                color={sidenavColor}
+                brand={
+                  (transparentSidenav && !darkMode) || whiteSidenav
+                    ? brandDark
+                    : brandWhite
+                }
+                brandName="Moyi Tech"
+                routes={routes}
+                onMouseEnter={handleOnMouseEnter}
+                onMouseLeave={handleOnMouseLeave}
+              />
+              <Configurator />
+              {configsButton}
+            </>
+          )}
+          {layout === "vr" && <Configurator />}
+          <Routes>
+            {/* Auth routes (not protected) */}
+            <Route path="/authentication/sign-in/cover" element={<SignInCover />} />
+            <Route path="/authentication/sign-up/cover" element={<SignUpCover />} />
+            <Route path="/authentication/reset-password/cover" element={<ResetCover />} />
+            {/* Special routes */}
+            <Route path='/interview/:interviewId/:meetingCreateToken' element={<AIInterview />} />
+
+            {/* Protected routes */}
+            {getProtectedRoutes(routes)}
+            
+            
+            {/* Default redirect - check if logged in first */}
+            <Route path="*" element={<Navigate to="/authentication/sign-in/cover" />} />
+          </Routes>
+        </ThemeProvider>
       )}
-      {layout === "vr" && <Configurator />}
-      <Routes>
-        {getRoutes(routes)}
-        <Route path="*" element={<Navigate to="/screenings/all-screenings" />} />
-        <Route path='/authentication/sign-up/cover' element={<SignUpCover />} />
-        <Route path='/interveiw/:id' element={<AIInterview />} /> 
-      </Routes>
-    </ThemeProvider>
+    </AuthProvider>
   );
 }

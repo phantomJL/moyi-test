@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 
 // @mui material components
@@ -9,26 +9,25 @@ import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Autocomplete from "@mui/material/Autocomplete";
 import Chip from "@mui/material/Chip";
-import FormControl from "@mui/material/FormControl";
-import FormLabel from "@mui/material/FormLabel";
-import RadioGroup from "@mui/material/RadioGroup";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Radio from "@mui/material/Radio";
 import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import FormHelperText from "@mui/material/FormHelperText";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import DeleteIcon from "@mui/icons-material/Delete";
+import Typography from "@mui/material/Typography";
 
 // Material Dashboard 3 PRO React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 
-// Import the API service
+// Import components and services
 import { ScreeningService } from "services";
+import { CandidateService } from "services";
 
 function NewScreening({ onClose }) {
   // Form state
@@ -37,13 +36,15 @@ function NewScreening({ onClose }) {
     jobDescription: "",
     candidateId: "",
     duration: "60",
-    expirationDate: "",
-    screeningTags: [],
-    techTags: [],
-    questions: [{ text: "" }],
-    sendInvitation: true
+    expireDate: "",
+    tags: [],
   });
   
+  // Candidates state
+  const [candidates, setCandidates] = useState([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [candidateError, setCandidateError] = useState("");
+
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,8 +53,7 @@ function NewScreening({ onClose }) {
   
   // Available tags and tech tags
   const availableTags = ["Technical", "Behavior", "Coding"];
-  const availableTechTags = ["Java", "Python", "JavaScript", "React", "Angular", "Node.js", "Spring", "Hibernate", "Kafka", "Redis", "MongoDB", "SQL"];
-  
+
   // Durations in minutes
   const durations = [
     { value: "30", label: "30 minutes" },
@@ -62,6 +62,30 @@ function NewScreening({ onClose }) {
     { value: "90", label: "90 minutes" },
     { value: "120", label: "2 hours" }
   ];
+  
+  // Fetch candidates on component mount
+  useEffect(() => {
+    fetchCandidates();
+  }, []);
+  
+  // Fetch candidates from API
+  const fetchCandidates = async () => {
+    setLoadingCandidates(true);
+    setCandidateError("");
+    
+    try {
+      const response = await CandidateService.getAllCandidates();
+      setCandidates(response.data.data.items || []);
+    } catch (error) {
+      console.error('Error fetching candidates:', error);
+      setCandidateError(
+        error.response?.data?.message || 
+        'Failed to load candidates. Please try again.'
+      );
+    } finally {
+      setLoadingCandidates(false);
+    }
+  };
   
   // Handle form field changes
   const handleChange = (e) => {
@@ -76,51 +100,7 @@ function NewScreening({ onClose }) {
   const handleTagsChange = (event, newValue) => {
     setFormData({
       ...formData,
-      screeningTags: newValue
-    });
-  };
-  
-  // Handle tech tags change
-  const handleTechTagsChange = (event, newValue) => {
-    setFormData({
-      ...formData,
-      techTags: newValue
-    });
-  };
-  
-  // Add a new question field
-  const addQuestion = () => {
-    setFormData({
-      ...formData,
-      questions: [...formData.questions, { text: "" }]
-    });
-  };
-  
-  // Remove a question field
-  const removeQuestion = (index) => {
-    const newQuestions = [...formData.questions];
-    newQuestions.splice(index, 1);
-    setFormData({
-      ...formData,
-      questions: newQuestions.length ? newQuestions : [{ text: "" }] // Always keep at least one question
-    });
-  };
-  
-  // Update a question field
-  const handleQuestionChange = (index, value) => {
-    const newQuestions = [...formData.questions];
-    newQuestions[index].text = value;
-    setFormData({
-      ...formData,
-      questions: newQuestions
-    });
-  };
-  
-  // Handle send invitation toggle
-  const handleSendInvitationChange = (e) => {
-    setFormData({
-      ...formData,
-      sendInvitation: e.target.value === "yes"
+      tags: newValue
     });
   };
   
@@ -134,39 +114,26 @@ function NewScreening({ onClose }) {
       setOpenSnackbar(true);
       return;
     }
-    
-    // Ensure at least one question has text
-    if (!formData.questions.some(q => q.text.trim())) {
-      setError("Please add at least one question");
-      setOpenSnackbar(true);
-      return;
-    }
-    
-    // Filter out empty questions
-    const filteredQuestions = formData.questions.filter(q => q.text.trim());
-    
+  
     setIsLoading(true);
-    
+    console.log("herer")
     try {
-      // Set default expiration date if not provided (30 days from now)
-      let expirationDate = formData.expirationDate;
-      if (!expirationDate) {
+      let expireDate = formData.expireDate;
+      if (!expireDate) {
         const date = new Date();
         date.setDate(date.getDate() + 30);
-        expirationDate = date.toISOString().substring(0, 16); // Format: YYYY-MM-DDTHH:MM
+        expireDate = date.toISOString(); 
       }
-      
+      const dateObj = new Date(expireDate);
+      expireDate = dateObj.toISOString();
       // Prepare data for API
       const screeningData = {
         jobTitle: formData.jobTitle,
         jobDescription: formData.jobDescription,
         candidateId: formData.candidateId,
         duration: parseInt(formData.duration),
-        expirationDate: expirationDate,
-        screeningTags: formData.screeningTags,
-        techTags: formData.techTags,
-        questions: filteredQuestions,
-        sendInvitation: formData.sendInvitation
+        expireDate: expireDate,
+        tags: formData.tags,
       };
       
       // Call API to create screening
@@ -232,24 +199,61 @@ function NewScreening({ onClose }) {
                     />
                   </Grid>
                   
+                  {/* Candidate Selection - replaced TextField with Select */}
                   <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Candidate ID"
-                      name="candidateId"
-                      value={formData.candidateId}
-                      onChange={handleChange}
-                      required
-                    />
+                    <FormControl fullWidth error={!!candidateError}>
+                      <InputLabel id="candidate-select-label">Candidate</InputLabel>
+                      {loadingCandidates ? (
+                        <Box display="flex" alignItems="center" height="56px" pl={2}>
+                          <CircularProgress size={24} />
+                          <Typography variant="body2" ml={2}>
+                            Loading candidates...
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Select
+                          labelId="candidate-select-label"
+                          id="candidate-select"
+                          name="candidateId"
+                          value={formData.candidateId}
+                          label="Candidate"
+                          onChange={handleChange}
+                          sx={{ minHeight: '56px' }}
+                          required
+                        >
+                          {candidates.length > 0 ? (
+                            candidates.map((candidate) => (
+                              <MenuItem key={candidate.id} value={candidate.id}>
+                                {candidate.name} ({candidate.email})
+                              </MenuItem>
+                            ))
+                          ) : (
+                            <MenuItem disabled value="">
+                              No candidates available
+                            </MenuItem>
+                          )}
+                        </Select>
+                      )}
+                      {candidateError && <FormHelperText>{candidateError}</FormHelperText>}
+                    </FormControl>
+                    
+                    {/* Add New Candidate Button */}
+                    <MDBox mt={1}>
+                      {!loadingCandidates && candidates.length === 0 && !candidateError && (
+                        <MDTypography variant="caption" color="text" ml={2}>
+                          No candidates found. Please add a new candidate.
+                        </MDTypography>
+                      )}
+                    </MDBox>
                   </Grid>
                   
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Expiration Date/Time"
-                      name="expirationDate"
+                      name="expireDate"
                       type="datetime-local"
-                      value={formData.expirationDate}
+                      value={formData.expireDate}
                       onChange={handleChange}
                       InputLabelProps={{
                         shrink: true,
@@ -265,6 +269,11 @@ function NewScreening({ onClose }) {
                       name="duration"
                       value={formData.duration}
                       onChange={handleChange}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          padding: '17px'
+                        }
+                      }}
                     >
                       {durations.map((option) => (
                         <MenuItem key={option.value} value={option.value}>
@@ -278,7 +287,7 @@ function NewScreening({ onClose }) {
                     <Autocomplete
                       multiple
                       options={availableTags}
-                      value={formData.screeningTags}
+                      value={formData.tags}
                       onChange={handleTagsChange}
                       renderInput={(params) => (
                         <TextField
@@ -298,117 +307,7 @@ function NewScreening({ onClose }) {
                       }
                     />
                   </Grid>
-                  
-                  <Grid item xs={12} md={6}>
-                    <Autocomplete
-                      multiple
-                      options={availableTechTags}
-                      value={formData.techTags}
-                      onChange={handleTechTagsChange}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Technology Tags"
-                          placeholder="Select technologies"
-                        />
-                      )}
-                      renderTags={(value, getTagProps) =>
-                        value.map((option, index) => (
-                          <Chip
-                            label={option}
-                            {...getTagProps({ index })}
-                            key={option}
-                          />
-                        ))
-                      }
-                    />
-                  </Grid>
-                  
-                  <Grid item xs={12}>
-                    <FormControl>
-                      <FormLabel id="send-invitation-label">Send invitation email to candidate?</FormLabel>
-                      <RadioGroup
-                        row
-                        aria-labelledby="send-invitation-label"
-                        name="sendInvitation"
-                        value={formData.sendInvitation ? "yes" : "no"}
-                        onChange={handleSendInvitationChange}
-                      >
-                        <FormControlLabel value="yes" control={<Radio />} label="Yes" />
-                        <FormControlLabel value="no" control={<Radio />} label="No" />
-                      </RadioGroup>
-                    </FormControl>
-                  </Grid>
                 </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <MDBox mb={3}>
-                  <MDTypography variant="h5" fontWeight="medium">
-                    Questions
-                  </MDTypography>
-                </MDBox>
-                
-                {formData.questions.map((question, index) => (
-                  <Box key={index} sx={{ display: 'flex', mb: 2 }}>
-                    <TextField
-                      fullWidth
-                      label={`Question ${index + 1}`}
-                      value={question.text}
-                      onChange={(e) => handleQuestionChange(index, e.target.value)}
-                      multiline
-                      rows={2}
-                      sx={{ mr: 1 }}
-                    />
-                    <IconButton
-                      aria-label="delete"
-                      onClick={() => removeQuestion(index)}
-                      disabled={formData.questions.length === 1}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                ))}
-                
-                <MDBox display="flex" justifyContent="center" mt={2}>
-                  <MDButton
-                    variant="outlined"
-                    color="info"
-                    onClick={addQuestion}
-                  >
-                    Add Question
-                  </MDButton>
-                </MDBox>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <MDBox mb={3}>
-                  <MDTypography variant="h5" fontWeight="medium">
-                    Invitation
-                  </MDTypography>
-                </MDBox>
-                
-                <FormControl>
-                  <FormLabel id="send-invitation-label">Send invitation email to candidate?</FormLabel>
-                  <RadioGroup
-                    row
-                    aria-labelledby="send-invitation-label"
-                    name="sendInvitation"
-                    value={formData.sendInvitation ? "yes" : "no"}
-                    onChange={handleSendInvitationChange}
-                  >
-                    <FormControlLabel value="yes" control={<Radio />} label="Yes" />
-                    <FormControlLabel value="no" control={<Radio />} label="No" />
-                  </RadioGroup>
-                </FormControl>
               </CardContent>
             </Card>
           </Grid>
@@ -430,7 +329,7 @@ function NewScreening({ onClose }) {
             variant="contained" 
             color="info"
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !formData.candidateId}
           >
             {isLoading ? <CircularProgress size={24} color="inherit" /> : "Create Screening"}
           </MDButton>
