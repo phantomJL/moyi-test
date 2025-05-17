@@ -77,7 +77,6 @@ import AllScreenings from "layouts/pages/screenings/all-screenings";
 import Candidates from "layouts/pages/candidates/all-candidates";
 import PricingPlans from "layouts/pages/account/pricing";
 import CompanySettings from "layouts/pages/account/settings";
-import AIInterview from "layouts/pages/ai-interview";
 
 const routes = [
   {

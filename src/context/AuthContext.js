@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is already logged in on mount
   useEffect(() => {
+    console.log()
     const checkAuth = () => {
       try {
         const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');

@@ -79,6 +79,7 @@ function AllScreenings() {
     setIsLoading(true);
     try {
       const response = await ScreeningService.getScreeningsByStatus(status);
+      console.log("here is the response", response.data.data.items);
       setScreenings(response.data.data.items);
       setError("");
     } catch (error) {
@@ -147,6 +148,22 @@ function AllScreenings() {
     setOpenSnackbar(false);
     setError("");
     setSuccess("");
+  };
+
+  // Format date string properly
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      // Create a proper date object
+      const date = new Date(dateString);
+      // Check if the date is valid
+      if (isNaN(date.getTime())) return "Invalid date";
+      // Format the date
+      return date.toLocaleString();
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date format";
+    }
   };
 
   // Tag color mapping
@@ -289,7 +306,7 @@ function AllScreenings() {
                           </Grid>
                           <Grid item xs={12} md={3}>
                             <MDTypography variant="body2" color="text">
-                              Expire time: {Date(screening.expireDate).toLocaleString()}
+                              Expire time: {formatDate(screening.expireDate)}
                             </MDTypography>
                             {tabValue !== 2 && ( // Show screening tags in upcoming and completed tabs
                               <MDBox display="flex" mt={1} flexWrap="wrap" gap={1}>

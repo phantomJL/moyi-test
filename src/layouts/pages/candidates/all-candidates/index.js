@@ -157,9 +157,8 @@ function Candidates() {
       }
       
       setOpenSnackbar(true);
-      
       // Refresh candidates
-      fetchCandidates();
+      await fetchCandidates();
       
       // Close the modal
       closeModal();
@@ -175,7 +174,7 @@ function Candidates() {
   // Handle resume upload
   const handleResumeUpload = async (file, candidateId) => {
     setIsLoading(true);
-    
+    if (!file) return null;
     try {
       const response = await CandidateService.uploadResume(file);
       const resumeLocation = response.data.data;
@@ -361,9 +360,9 @@ function Candidates() {
           <Candidate 
             isEditMode={isEditMode}
             candidateId={selectedCandidateId}
-            onSave={handleSaveCandidate}
+            onSave={()=>handleSaveCandidate}
             onClose={closeModal}
-            onResumeUpload={handleResumeUpload}
+            onResumeUpload={()=>handleResumeUpload}
             candidateData={
               isEditMode && selectedCandidateId
                 ? candidates.find(c => c.id === selectedCandidateId) 

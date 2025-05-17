@@ -2,30 +2,14 @@ import API from "./api";
 
 
 // Base endpoint for meetings
-const BASE_URL = '/meetings';
+const BASE_URL = '/screenings';
 
-export const createMeeting = (meetingData) => {
-  return API.post(BASE_URL, meetingData);
+export const createMeeting = (screeningId, meetingCreateToken) => {
+  return API.post(`${BASE_URL}/${screeningId}/meetings?meetingCreateToken=${meetingCreateToken}`, {});
 };
 
-export const deleteMeeting = (meetingId) => {
-  return API.delete(`${BASE_URL}/${meetingId}`);
-};
-
-export const joinMeeting = (meetingId, joinData) => {
-  return API.post(`${BASE_URL}/${meetingId}/join`, joinData);
-};
-
-export const getMeetingStatus = (meetingId) => {
-  return API.get(`${BASE_URL}/${meetingId}/status`);
-};
-
-export const startRecording = (meetingId) => {
-  return API.post(`${BASE_URL}/${meetingId}/recording/start`);
-};
-
-export const stopRecording = (meetingId) => {
-  return API.post(`${BASE_URL}/${meetingId}/recording/stop`);
+export const deleteMeeting = (screeningId, meetingId) => {
+  return API.delete(`${BASE_URL}/${screeningId}/meetings/${meetingId}`);
 };
 
 export const getAudioWebSocketUrl = () => {

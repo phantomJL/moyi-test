@@ -16,7 +16,7 @@ Coded by www.creative-tim.com
 import { useState, useEffect, useMemo } from "react";
 
 // react-router components
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, createBrowserRouter, createRoutesFromElements, RouterProvider } from "react-router-dom";
 
 // @mui material components
 import { ThemeProvider } from "@mui/material/styles";
@@ -127,13 +127,35 @@ export default function App() {
     document.scrollingElement.scrollTop = 0;
   }, [pathname]);
 
+  // Check for direct interview URL access
+  const fullPath = window.location.pathname;
+  const isInterviewUrl = fullPath.startsWith('/interview/');
+  // If accessing the interview URL directly, bypass the auth system
+  if (isInterviewUrl) {
+    // Extract the parameters from the URL
+    const pathParts = fullPath.split('/');
+    const interviewId = pathParts[2] || '';
+    const meetingCreateToken = pathParts[3] || '';
+
+    // Render only the AIInterview component with necessary props
+    return (
+      <ThemeProvider theme={darkMode ? themeDark : theme}>
+        <CssBaseline />
+        <AIInterview 
+          interviewId={interviewId} 
+          meetingCreateToken={meetingCreateToken} 
+          isDirectAccess={true} 
+        />
+      </ThemeProvider>
+    );
+  }
+
   // Helper function to wrap routes with ProtectedRoute
   const getProtectedRoutes = (allRoutes) =>
     allRoutes.map((route) => {
       if (route.collapse) {
         return getProtectedRoutes(route.collapse);
       }
-
       if (route.route) {
         // Skip authentication for auth-related routes
         if (route.route.includes('/authentication/')) {
@@ -146,7 +168,6 @@ export default function App() {
             />
           );
         }
-
         // Protect all other routes
         return (
           <Route
@@ -185,6 +206,7 @@ export default function App() {
     </MDBox>
   );
 
+  // Regular app with authentication for non-interview routes
   return (
     <AuthProvider>
       {direction === "rtl" ? (
@@ -215,12 +237,9 @@ export default function App() {
               <Route path="/authentication/sign-in/cover" element={<SignInCover />} />
               <Route path="/authentication/sign-up/cover" element={<SignUpCover />} />
               <Route path="/authentication/reset-password/cover" element={<ResetCover />} />
-              {/* Special routes */}
-              <Route path='/interview/:interviewId/:meetingCreateToken' element={<AIInterview />} />
               
               {/* Protected routes */}
               {getProtectedRoutes(routes)}
-              
               
               {/* Default redirect */}
               <Route path="*" element={<Navigate to="/authentication/sign-in/cover" />} />
@@ -254,15 +273,12 @@ export default function App() {
             <Route path="/authentication/sign-in/cover" element={<SignInCover />} />
             <Route path="/authentication/sign-up/cover" element={<SignUpCover />} />
             <Route path="/authentication/reset-password/cover" element={<ResetCover />} />
-            {/* Special routes */}
-            <Route path='/interview/:interviewId/:meetingCreateToken' element={<AIInterview />} />
 
             {/* Protected routes */}
             {getProtectedRoutes(routes)}
             
-            
-            {/* Default redirect - check if logged in first */}
-            <Route path="*" element={<Navigate to="/authentication/sign-in/cover" />} />
+            {/* Default redirect */}
+            {/* <Route path="*" element={<Navigate to="/authentication/sign-in/cover" />} /> */}
           </Routes>
         </ThemeProvider>
       )}
