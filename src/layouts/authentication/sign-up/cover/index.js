@@ -70,6 +70,7 @@ function Cover() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Handle input changes for signup form
   const handleChange = (e) => {
@@ -78,6 +79,14 @@ function Cover() {
       ...formData,
       [name]: value,
     });
+    
+    // Clear field-specific errors when user starts typing
+    if (fieldErrors[name]) {
+      setFieldErrors({
+        ...fieldErrors,
+        [name]: []
+      });
+    }
   };
 
   // Handle verification code input
@@ -85,13 +94,75 @@ function Cover() {
     setVerificationCode(e.target.value);
   };
 
+  // Frontend validation helpers
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password) => {
+    const errors = [];
+    if (password.length < 8) {
+      errors.push("Password must be at least 8 characters long");
+    }
+    if (!/[A-Z]/.test(password)) {
+      errors.push("Password must contain at least one uppercase letter");
+    }
+    if (!/[a-z]/.test(password)) {
+      errors.push("Password must contain at least one lowercase letter");
+    }
+    if (!/\d/.test(password)) {
+      errors.push("Password must contain at least one number");
+    }
+    if (!/[^\w\s]/.test(password)) {
+      errors.push("Password must contain at least one special character : ^ $ * . [ ] { } ( ) ? - \" ! @ # % & / \\ , > < ' : ; |  ~ ` + =");
+    }
+    return errors;
+  };
+
+  // Client-side validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.firstName.trim()) {
+      errors.firstName = ["First name is required"];
+    }
+    
+    if (!formData.lastName.trim()) {
+      errors.lastName = ["Last name is required"];
+    }
+    
+    if (!formData.email.trim()) {
+      errors.email = ["Email is required"];
+    } else if (!validateEmail(formData.email)) {
+      errors.email = ["Please enter a valid email address"];
+    }
+    
+    if (!formData.password) {
+      errors.password = ["Password is required"];
+    } else {
+      const passwordErrors = validatePassword(formData.password);
+      if (passwordErrors.length > 0) {
+        errors.password = passwordErrors;
+      }
+    }
+    
+    return errors;
+  };
+
   // Handle signup form submission
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate form
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError("Please fill in all required fields");
+    // Clear previous errors
+    setFieldErrors({});
+    setError("");
+    
+    // Client-side validation
+    const clientErrors = validateForm();
+    if (Object.keys(clientErrors).length > 0) {
+      setFieldErrors(clientErrors);
+      setError("Please fix the validation errors below");
       setOpenSnackbar(true);
       return;
     }
@@ -103,7 +174,6 @@ function Cover() {
     }
 
     setIsLoading(true);
-    setError("");
     
     try {
       // Call signup API
@@ -124,9 +194,27 @@ function Cover() {
       
     } catch (error) {
       if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(error.response.data || "User already exists or signup exception");
+        // Check if it's a validation error from backend
+        if (error.response.status === 400 && 
+            error.response.data?.errorCode === 'VALIDATION_ERROR' && 
+            error.response.data?.data) {
+          
+          // Parse validation errors and group by field
+          const validationErrors = {};
+          error.response.data.data.forEach(validationError => {
+            const field = validationError.property;
+            if (!validationErrors[field]) {
+              validationErrors[field] = [];
+            }
+            validationErrors[field].push(validationError.message);
+          });
+          
+          setFieldErrors(validationErrors);
+          setError("Please fix the validation errors below");
+        } else {
+          // Handle other types of errors
+          setError(error.response.data?.message || error.response.data || "User already exists or signup exception");
+        }
       } else if (error.request) {
         // The request was made but no response was received
         setError("No response from server. Please try again later.");
@@ -214,6 +302,27 @@ function Cover() {
     setOpenSnackbar(false);
   };
 
+  // Helper function to render field errors
+  const renderFieldErrors = (fieldName) => {
+    if (fieldErrors[fieldName] && fieldErrors[fieldName].length > 0) {
+      return (
+        <MDBox mt={0.5}>
+          {fieldErrors[fieldName].map((errorMessage, index) => (
+            <MDTypography
+              key={index}
+              variant="caption"
+              color="error"
+              display="block"
+            >
+              {errorMessage}
+            </MDTypography>
+          ))}
+        </MDBox>
+      );
+    }
+    return null;
+  };
+
   return (
     <CoverLayout image={bgImage}>
       <Card>
@@ -260,7 +369,9 @@ function Cover() {
                   variant="standard" 
                   fullWidth 
                   required
+                  error={fieldErrors.firstName && fieldErrors.firstName.length > 0}
                 />
+                {renderFieldErrors('firstName')}
               </MDBox>
               <MDBox mb={2}>
                 <MDInput 
@@ -272,7 +383,9 @@ function Cover() {
                   variant="standard" 
                   fullWidth 
                   required
+                  error={fieldErrors.lastName && fieldErrors.lastName.length > 0}
                 />
+                {renderFieldErrors('lastName')}
               </MDBox>
               <MDBox mb={2}>
                 <MDInput
@@ -284,7 +397,9 @@ function Cover() {
                   variant="standard"
                   fullWidth
                   required
+                  error={fieldErrors.email && fieldErrors.email.length > 0}
                 />
+                {renderFieldErrors('email')}
               </MDBox>
               <MDBox mb={2}>
                 <MDInput
@@ -296,7 +411,9 @@ function Cover() {
                   variant="standard"
                   fullWidth
                   required
+                  error={fieldErrors.password && fieldErrors.password.length > 0}
                 />
+                {renderFieldErrors('password')}
               </MDBox>
               <MDBox mb={2}>
                 <MDInput
@@ -307,7 +424,9 @@ function Cover() {
                   onChange={handleChange}
                   variant="standard"
                   fullWidth
+                  error={fieldErrors.companyName && fieldErrors.companyName.length > 0}
                 />
+                {renderFieldErrors('companyName')}
               </MDBox>
               <MDBox mb={2}>
                 <MDInput
@@ -318,7 +437,9 @@ function Cover() {
                   onChange={handleChange}
                   variant="standard"
                   fullWidth
+                  error={fieldErrors.companyWebsite && fieldErrors.companyWebsite.length > 0}
                 />
+                {renderFieldErrors('companyWebsite')}
               </MDBox>
               <MDBox display="flex" alignItems="center" ml={-1}>
                 <Checkbox 

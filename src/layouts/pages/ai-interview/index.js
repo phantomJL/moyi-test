@@ -19,10 +19,10 @@ import {
   MeetingSessionConfiguration
 } from 'amazon-chime-sdk-js';
 
-function AIInterview({ interviewId: propInterviewId, meetingCreateToken: propMeetingToken }) {
+function AIInterview() {
   const params = useParams();
-  const interviewId = propInterviewId || params.interviewId;
-  const meetingCreateToken = propMeetingToken || params.meetingCreateToken;
+  const interviewId = params.interviewId;
+  const meetingCreateToken = params.meetingCreateToken;
 
   // State
   const [isLoading, setIsLoading] = useState(true);
@@ -641,21 +641,31 @@ function AIInterview({ interviewId: propInterviewId, meetingCreateToken: propMee
         }
       }
       
-      // Modify URL for WebSocket - using original transformation logic
-      if (websocketUrl.startsWith('http://')) {
-        websocketUrl = websocketUrl.replace('http://', 'ws://');
-      } else if (websocketUrl.startsWith('https://')) {
-        websocketUrl = websocketUrl.replace('https://', 'ws://');
-      } else if (websocketUrl.startsWith('wss://')) {
-        websocketUrl = websocketUrl.replace('wss://', 'ws://');
+      let finalWebsocketUrl = websocketUrl;
+
+      if (websocketUrl.startsWith('https://')) {
+          // If API is HTTPS, WebSocket should be WSS.
+          // Handles ws:// and http:// (if backend sends http for websocket path)
+          if (finalWebsocketUrl.startsWith('ws://')) {
+              finalWebsocketUrl = 'wss://' + finalWebsocketUrl.substring('ws://'.length);
+          } else if (finalWebsocketUrl.startsWith('http://')) {
+              finalWebsocketUrl = 'wss://' + finalWebsocketUrl.substring('http://'.length);
+          } else if (finalWebsocketUrl.startsWith('https://')) {
+              // If backend sends https:// for a websocket URL, convert to wss://
+              finalWebsocketUrl = 'wss://' + finalWebsocketUrl.substring('https://'.length);
+          }
+      } else if (websocketUrl.startsWith('http://')) {
+          // If API is HTTP, WebSocket should be WS.
+          // Handles wss:// and https:// (if backend sends https for websocket path)
+          if (finalWebsocketUrl.startsWith('wss://')) {
+              finalWebsocketUrl = 'ws://' + finalWebsocketUrl.substring('wss://'.length);
+          } else if (finalWebsocketUrl.startsWith('https://')) {
+              finalWebsocketUrl = 'ws://' + finalWebsocketUrl.substring('https://'.length);
+          } else if (finalWebsocketUrl.startsWith('http://')) {
+              // If backend sends http:// for a websocket URL, convert to ws://
+              finalWebsocketUrl = 'ws://' + finalWebsocketUrl.substring('http://'.length);
+          }
       }
-      
-      // Ensure port number
-      if (websocketUrl.indexOf(':8000') === -1) {
-        const domain = websocketUrl.split('/')[2];
-        websocketUrl = websocketUrl.replace(domain, domain + ':8000');
-      }
-      
       console.log('WebSocket URL:', websocketUrl);
       
       // Create connection
@@ -1418,6 +1428,18 @@ function AIInterview({ interviewId: propInterviewId, meetingCreateToken: propMee
                     {/* Controls */}
                     <Box display="flex" justifyContent="space-between" gap={2} mb={2}>
                       <Button
+                        id="toggle-video-btn"
+                        variant="contained"
+                        color={videoEnabled ? "primary" : "secondary"}
+                        onClick={toggleVideo}
+                        disabled={interviewEnded}
+                        fullWidth
+                        startIcon={videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
+                      >
+                        {videoEnabled ? "Disable Video" : "Enable Video"}
+                      </Button>
+
+                      <Button
                         id="toggle-recording-btn"
                         ref={startRecordingBtnRef}
                         variant="contained"
@@ -1428,18 +1450,6 @@ function AIInterview({ interviewId: propInterviewId, meetingCreateToken: propMee
                         startIcon={<MicIcon />}
                       >
                         {isRecording ? "Stop Interview" : "Start Interview"}
-                      </Button>
-                      
-                      <Button
-                        id="toggle-video-btn"
-                        variant="contained"
-                        color={videoEnabled ? "primary" : "secondary"}
-                        onClick={toggleVideo}
-                        disabled={interviewEnded}
-                        fullWidth
-                        startIcon={videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
-                      >
-                        {videoEnabled ? "Disable Video" : "Enable Video"}
                       </Button>
                     </Box>
                     

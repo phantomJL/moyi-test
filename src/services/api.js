@@ -17,8 +17,9 @@ const isTokenExpired = (token) => {
   }
 };
 
+
 const API = axios.create({
-  baseURL: '/api/v1',
+  baseURL: "https://api.screencheckr.com/api/v1",
   headers: {
     'Content-Type': 'application/json',
   },

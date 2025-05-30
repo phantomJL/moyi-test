@@ -59,7 +59,7 @@ function AllScreenings() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
-  
+  console.log("modalContent",modalContent)
   // Helper function to get status from tab value
   const getStatusFromTabValue = (tabValue) => {
     switch (tabValue) {
@@ -339,31 +339,16 @@ function AllScreenings() {
                             )}
                           </Grid>
                           <Grid item xs={12} md={3} sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                            {screening.status === "completed" ? (
-                              <MDButton 
-                                variant="outlined" 
-                                color="info" 
-                                size="small"
-                                onClick={() => handleViewReport(screening.id)}
-                              >
+                            {tabValue === 1 ? ( // 1 is the index for "Completed" tab
+                              <MDButton variant="outlined" color="info" size="small" onClick={() => handleViewReport(screening.id)}>
                                 View Report
                               </MDButton>
-                            ) : screening.status === "expired" ? (
-                              <MDButton 
-                                variant="outlined" 
-                                color="info" 
-                                size="small"
-                                onClick={() => handleReopenScreening(screening.id)}
-                              >
+                            ) : tabValue === 2 ? ( // 2 is the index for "Expired" tab
+                              <MDButton variant="outlined" color="info" size="small" onClick={() => handleReopenScreening(screening.id)}>
                                 Reopen Screening
                               </MDButton>
                             ) : (
-                              <MDButton 
-                                variant="outlined" 
-                                color="info" 
-                                size="small"
-                                onClick={() => handleViewDetails(screening.id)}
-                              >
+                              <MDButton variant="outlined" color="info" size="small" onClick={() => handleViewDetails(screening.id)}>
                                 Details
                               </MDButton>
                             )}

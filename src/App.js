@@ -48,6 +48,7 @@ import routes from "routes";
 
 // Material Dashboard 3 PRO React contexts
 import {
+  setLayout,
   useMaterialUIController,
   setMiniSidenav,
   setOpenConfigurator,
@@ -127,28 +128,19 @@ export default function App() {
     document.scrollingElement.scrollTop = 0;
   }, [pathname]);
 
-  // Check for direct interview URL access
-  const fullPath = window.location.pathname;
-  const isInterviewUrl = fullPath.startsWith('/interview/');
-  // If accessing the interview URL directly, bypass the auth system
-  if (isInterviewUrl) {
-    // Extract the parameters from the URL
-    const pathParts = fullPath.split('/');
-    const interviewId = pathParts[2] || '';
-    const meetingCreateToken = pathParts[3] || '';
-
-    // Render only the AIInterview component with necessary props
-    return (
-      <ThemeProvider theme={darkMode ? themeDark : theme}>
-        <CssBaseline />
-        <AIInterview 
-          interviewId={interviewId} 
-          meetingCreateToken={meetingCreateToken} 
-          isDirectAccess={true} 
-        />
-      </ThemeProvider>
-    );
-  }
+  useEffect(() => {
+    // Check if it's an interview path
+    const isInterviewPath = pathname.startsWith('/interview/');
+    
+    if (isInterviewPath) {
+      // Set layout to 'minimal' for interview pages
+      setLayout(dispatch, 'minimal');
+    } else if (!pathname.includes('/authentication/')) {
+      // Set layout back to dashboard for regular pages
+      setLayout(dispatch, 'dashboard');
+    }
+  }, [pathname, dispatch]);
+  
 
   // Helper function to wrap routes with ProtectedRoute
   const getProtectedRoutes = (allRoutes) =>
@@ -276,9 +268,12 @@ export default function App() {
 
             {/* Protected routes */}
             {getProtectedRoutes(routes)}
-            
+            <Route 
+              path="/interview/:interviewId/:meetingCreateToken" 
+              element={<AIInterview isDirectAccess={true} />} 
+            />
             {/* Default redirect */}
-            {/* <Route path="*" element={<Navigate to="/authentication/sign-in/cover" />} /> */}
+            <Route path="*" element={<Navigate to="/authentication/sign-in/cover" />} />
           </Routes>
         </ThemeProvider>
       )}

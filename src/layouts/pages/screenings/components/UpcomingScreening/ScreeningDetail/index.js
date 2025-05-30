@@ -360,7 +360,7 @@ function ScreeningDetail({ id, onClose }) {
                   {questions.length > 0 ? (
                     <TableContainer>
                       <Table sx={{ minWidth: 650 }}>
-                        <TableHead>
+                        <TableHead sx={{ display: 'table-header-group' }}>
                           <TableRow>
                             <TableCell>Question</TableCell>
                             <TableCell>Type</TableCell>
